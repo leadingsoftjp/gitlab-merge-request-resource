@@ -67,8 +67,11 @@ func main() {
 			}
 		} else if len(strings.TrimSpace(request.Source.OnlyTriggerComment)) > 0 {
 			notes, _, _ := api.Notes.ListMergeRequestNotes(mr.ProjectID, mr.IID, &gitlab.ListMergeRequestNotesOptions{})
-			updatedAt = getMostRecentUpdateTime(request.Source.OnlyTriggerComment, notes, updatedAt)
-			if request.Version.UpdatedAt != nil && !updatedAt.After(*request.Version.UpdatedAt) {
+			updatedByComment := getMostRecentUpdateTime(request.Source.OnlyTriggerComment, notes, updatedAt)
+			if updatedByComment.After(*updatedAt) {
+				isTriggeredByComment = true
+				updatedAt = updatedByComment
+			} else {
 				continue
 			}
 		}
