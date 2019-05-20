@@ -37,6 +37,7 @@ func main() {
 
 	for _, mr := range requests {
 		var updatedAt *time.Time
+		isTriggeredByComment := false
 		commit, _, err := api.Commits.GetCommit(mr.ProjectID, mr.SHA)
 
 		if len(strings.TrimSpace(request.Source.OnlyTriggerComment)) > 0 {
@@ -57,19 +58,25 @@ func main() {
 			continue
 		}
 
-		if !request.Source.SkipTriggerComment {
+		if len(strings.TrimSpace(request.Source.AlsoTriggerComment)) > 0 {
 			notes, _, _ := api.Notes.ListMergeRequestNotes(mr.ProjectID, mr.IID, &gitlab.ListMergeRequestNotesOptions{})
-
-			if len(strings.TrimSpace(request.Source.AlsoTriggerComment)) > 0 {
-				updatedAt = getMostRecentUpdateTime(request.Source.AlsoTriggerComment, notes, updatedAt)
-			} else if len(strings.TrimSpace(request.Source.OnlyTriggerComment)) > 0 {
-				updatedAt = getMostRecentUpdateTime(request.Source.OnlyTriggerComment, notes, updatedAt)
+			updatedByComment := getMostRecentUpdateTime(request.Source.AlsoTriggerComment, notes, updatedAt)
+			if updatedByComment.After(*updatedAt) {
+				isTriggeredByComment = true
+				updatedAt = updatedByComment
+			}
+		} else if len(strings.TrimSpace(request.Source.OnlyTriggerComment)) > 0 {
+			notes, _, _ := api.Notes.ListMergeRequestNotes(mr.ProjectID, mr.IID, &gitlab.ListMergeRequestNotesOptions{})
+			updatedByComment := getMostRecentUpdateTime(request.Source.OnlyTriggerComment, notes, updatedAt)
+			if updatedByComment.After(*updatedAt) {
+				isTriggeredByComment = true
+				updatedAt = updatedByComment
+			} else {
+				continue
 			}
 		}
 
-		if len(strings.TrimSpace(request.Source.OnlyTriggerComment)) == 0 &&
-				len(strings.TrimSpace(request.Source.AlsoTriggerComment)) == 0 &&
-				request.Source.SkipWorkInProgress && mr.WorkInProgress {
+		if !isTriggeredByComment && request.Source.SkipWorkInProgress && mr.WorkInProgress {
 			continue
 		}
 
