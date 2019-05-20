@@ -39,12 +39,7 @@ func main() {
 		var updatedAt *time.Time
 		isTriggeredByComment := false
 		commit, _, err := api.Commits.GetCommit(mr.ProjectID, mr.SHA)
-
-		if len(strings.TrimSpace(request.Source.OnlyTriggerComment)) > 0 {
-			updatedAt = request.Version.UpdatedAt
-		} else {
-			updatedAt = commit.CommittedDate
-		}
+		updatedAt = commit.CommittedDate
 
 		if err != nil {
 			continue
