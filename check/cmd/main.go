@@ -36,9 +36,14 @@ func main() {
 	versions = make([]resource.Version, 0)
 
 	for _, mr := range requests {
-
+		var updatedAt *time.Time
 		commit, _, err := api.Commits.GetCommit(mr.ProjectID, mr.SHA)
-		updatedAt := commit.CommittedDate
+
+		if len(strings.TrimSpace(request.Source.OnlyTriggerComment)) > 0 {
+			updatedAt = request.Version.UpdatedAt
+		} else {
+			updatedAt = commit.CommittedDate
+		}
 
 		if err != nil {
 			continue
@@ -54,10 +59,16 @@ func main() {
 
 		if !request.Source.SkipTriggerComment {
 			notes, _, _ := api.Notes.ListMergeRequestNotes(mr.ProjectID, mr.IID, &gitlab.ListMergeRequestNotesOptions{})
-			updatedAt = getMostRecentUpdateTime(request.Source.OnlyTriggerComment, notes, updatedAt)
+
+			if len(strings.TrimSpace(request.Source.AlsoTriggerComment)) > 0 {
+				updatedAt = getMostRecentUpdateTime(request.Source.AlsoTriggerComment, notes, updatedAt)
+			} else if len(strings.TrimSpace(request.Source.OnlyTriggerComment)) > 0 {
+				updatedAt = getMostRecentUpdateTime(request.Source.OnlyTriggerComment, notes, updatedAt)
+			}
 		}
 
 		if len(strings.TrimSpace(request.Source.OnlyTriggerComment)) == 0 &&
+				len(strings.TrimSpace(request.Source.AlsoTriggerComment)) == 0 &&
 				request.Source.SkipWorkInProgress && mr.WorkInProgress {
 			continue
 		}
